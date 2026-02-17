@@ -5,14 +5,27 @@
   <title>News Feed</title>
   <style></style>
   <link rel="stylesheet" href="style.css">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
+  <noscript>
+    <div style="border: 2px solid #cc0000; padding: 1rem; margin: 1rem; background: #ffeeee;">
+      <p><strong>JavaScript is disabled.</strong></p>
+      <p>This page requires JavaScript to display articles. Please either:</p>
+      <ul>
+        <li><a href="/">Use the text-only version</a> (recommended for terminal browsers)</li>
+        <li>Enable JavaScript in your browser</li>
+      </ul>
+    </div>
+  </noscript>
+
   <div class="header">
     <h1>News Feed</h1>
-    <button class="dark-mode-toggle" id="darkModeToggle">
-      🌙 Dark Mode
-    </button>
+    <div>
+      <a href="/" style="margin-right: 1rem; font-size: 0.9em;">Text Mode</a>
+      <button class="dark-mode-toggle" id="darkModeToggle">
+        🌙 Dark Mode
+      </button>
+    </div>
   </div>
 
   <section class="feed-controls">
@@ -44,29 +57,24 @@
     </div>
   </section>
 
-  <section id="stockChartContainer" class="stock-chart-container">
+  <section id="stocksContainer" class="stocks-container">
     <div class="panel-header">
       <h2>Market Watch</h2>
-      <button id="toggleChartBtn" class="toggle-chart-btn">−</button>
+      <span class="last-update" id="stocksLastUpdate">--</span>
     </div>
-    <div id="stockChartContent" class="stock-chart-content">
-      <div class="stock-buttons">
-        <button class="stock-btn active" data-symbol="TSLA">TESLA</button>
-        <button class="stock-btn" data-symbol="BTC-USD">BTC</button>
-        <button class="stock-btn" data-symbol="TOY.TO">Spinmaster</button>
-        <button class="stock-btn" data-symbol="^GSPC">S&P 500</button>
+    <div class="stocks-grid" id="stocksGrid">
+      <div class="stock-card loading">
+        <div class="stock-symbol">Loading...</div>
       </div>
-      <div class="stock-info">
-        <span id="currentPrice" class="current-price">--</span>
-        <span id="priceChange" class="price-change">--</span>
-      </div>
-      <canvas id="stockChart"></canvas>
     </div>
   </section>
 
   <section id="feed"></section>
 
   <script>
+    // Mark body as JS-enabled for progressive enhancement
+    document.body.classList.add('js-enabled');
+    
     // Dark mode toggle functionality
     const darkModeToggle = document.getElementById('darkModeToggle');
     const body = document.body;
@@ -119,8 +127,8 @@
         const container = document.getElementById('feed');
         container.innerHTML = '';
         
-        if (articles.length === 0) {
-          container.innerHTML = '<p>No articles yet. Add a source and wait for the cron job to fetch articles.</p>';
+         if (articles.length === 0) {
+          container.innerHTML = '<p>No articles yet. Add a source and click "Fetch Articles" in Text Mode to load them.</p>';
           return;
         }
         
@@ -156,12 +164,26 @@
       });
       e.target.reset();
       loadSources(); // Refresh the sources list
-      alert('Source added – it will be fetched on the next schedule.');
+         alert('Source added – click "Fetch Articles" to load articles.');
     });
 
-    // Manual refresh button
-    document.getElementById('refreshBtn').addEventListener('click', () => {
-      loadFeed();
+    // Manual refresh button - fetches new articles from sources
+    document.getElementById('refreshBtn').addEventListener('click', async () => {
+      const btn = document.getElementById('refreshBtn');
+      btn.disabled = true;
+      btn.textContent = 'Fetching...';
+      
+      try {
+        // First fetch new articles from sources
+        await fetch('/api/fetch', { method: 'POST' });
+        // Then reload the feed display
+        await loadFeed();
+      } catch (error) {
+        console.error('Error refreshing feed:', error);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Refresh Feed';
+      }
     });
 
     // Sources panel management
@@ -232,133 +254,50 @@
     // Auto-refresh every minute
     setInterval(loadFeed, 60000);
 
-    // Stock Chart Functionality
-    let stockChart = null;
-    let currentSymbol = 'TSLA';
+    // Stocks Grid Functionality
+    const stockSymbols = {
+      'TSLA': 'Tesla',
+      'BTC-USD': 'Bitcoin',
+      'TOY.TO': 'Spinmaster',
+      '^GSPC': 'S&P 500'
+    };
 
-    // Toggle chart visibility
-    const stockChartContent = document.getElementById('stockChartContent');
-    const toggleChartBtn = document.getElementById('toggleChartBtn');
-    let isChartMinimized = false;
-
-    toggleChartBtn.addEventListener('click', () => {
-      isChartMinimized = !isChartMinimized;
-      stockChartContent.style.display = isChartMinimized ? 'none' : 'block';
-      toggleChartBtn.textContent = isChartMinimized ? '+' : '−';
-    });
-
-    // Stock button click handlers
-    document.querySelectorAll('.stock-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        document.querySelectorAll('.stock-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        currentSymbol = btn.dataset.symbol;
-        loadStockData(currentSymbol);
-      });
-    });
-
-    async function loadStockData(symbol) {
+    async function loadStocks() {
       try {
-        // Using backend proxy to avoid CORS
-        const response = await fetch(`/api/stock/${symbol}`);
-        const data = await response.json();
+        const response = await fetch('/api/stocks');
+        const stocks = await response.json();
         
-        if (data.chart && data.chart.result && data.chart.result[0]) {
-          const result = data.chart.result[0];
-          const prices = result.indicators.quote[0].close;
-          const timestamps = result.timestamp;
-          const meta = result.meta;
+        const grid = document.getElementById('stocksGrid');
+        grid.innerHTML = '';
+        
+        stocks.forEach(stock => {
+          const card = document.createElement('div');
+          card.className = 'stock-card';
+          const isPositive = stock.change >= 0;
+          const displayName = stockSymbols[stock.symbol] || stock.symbol;
           
-          // Update current price and change
-          const currentPrice = prices[prices.length - 1];
-          const previousPrice = prices[prices.length - 2];
-          const change = currentPrice - previousPrice;
-          const changePercent = (change / previousPrice) * 100;
-          
-          document.getElementById('currentPrice').textContent = `$${currentPrice.toFixed(2)}`;
-          const changeEl = document.getElementById('priceChange');
-          changeEl.textContent = `${change >= 0 ? '+' : ''}${change.toFixed(2)} (${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(2)}%)`;
-          changeEl.className = `price-change ${change >= 0 ? 'positive' : 'negative'}`;
-          
-          // Prepare chart data
-          const labels = timestamps.map(t => new Date(t * 1000).toLocaleDateString());
-          
-          // Destroy existing chart if any
-          if (stockChart) {
-            stockChart.destroy();
-          }
-          
-          // Create new chart
-          const ctx = document.getElementById('stockChart').getContext('2d');
-          const isDark = document.body.classList.contains('dark-mode');
-          
-          stockChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-              labels: labels,
-              datasets: [{
-                label: symbol,
-                data: prices,
-                borderColor: change >= 0 ? '#28a745' : '#dc3545',
-                backgroundColor: change >= 0 ? 'rgba(40, 167, 69, 0.1)' : 'rgba(220, 53, 69, 0.1)',
-                borderWidth: 2,
-                fill: true,
-                tension: 0.4,
-                pointRadius: 0,
-                pointHoverRadius: 4
-              }]
-            },
-            options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              plugins: {
-                legend: {
-                  display: false
-                },
-                tooltip: {
-                  mode: 'index',
-                  intersect: false,
-                  backgroundColor: isDark ? 'rgba(0, 0, 0, 0.8)' : 'rgba(255, 255, 255, 0.9)',
-                  titleColor: isDark ? '#fff' : '#333',
-                  bodyColor: isDark ? '#fff' : '#333',
-                  borderColor: isDark ? '#444' : '#ddd',
-                  borderWidth: 1
-                }
-              },
-              scales: {
-                x: {
-                  display: false
-                },
-                y: {
-                  display: true,
-                  grid: {
-                    color: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
-                  },
-                  ticks: {
-                    color: isDark ? '#ccc' : '#666'
-                  }
-                }
-              },
-              interaction: {
-                mode: 'nearest',
-                axis: 'x',
-                intersect: false
-              }
-            }
-          });
-        }
+          card.innerHTML = `
+            <div class="stock-symbol">${displayName}</div>
+            <div class="stock-price">$${stock.price.toFixed(2)}</div>
+            <div class="stock-change ${isPositive ? 'positive' : 'negative'}">
+              ${isPositive ? '+' : ''}${stock.change.toFixed(2)} (${isPositive ? '+' : ''}${stock.changePercent.toFixed(2)}%)
+            </div>
+          `;
+          grid.appendChild(card);
+        });
+        
+        document.getElementById('stocksLastUpdate').textContent = 'Updated: ' + new Date().toLocaleTimeString();
       } catch (error) {
-        console.error('Error loading stock data:', error);
-        document.getElementById('currentPrice').textContent = 'Error';
-        document.getElementById('priceChange').textContent = 'Failed to load';
+        console.error('Error loading stocks:', error);
+        document.getElementById('stocksGrid').innerHTML = '<div class="stock-card error">Failed to load stocks</div>';
       }
     }
 
-    // Load initial stock data
-    loadStockData(currentSymbol);
+    // Load initial stocks
+    loadStocks();
 
-    // Refresh stock data every 5 minutes
-    setInterval(() => loadStockData(currentSymbol), 300000);
+    // Refresh stocks every 30 seconds for live updates
+    setInterval(loadStocks, 30000);
   </script>
 </body>
 </html>

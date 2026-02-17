@@ -1,14 +1,56 @@
  body {
-      font-family: Arial, sans-serif;
-      margin: 2rem;
-      transition: background-color 0.3s, color 0.3s;
-    }
-
-    #feed {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1.5rem;
-}
+       font-family: Arial, sans-serif;
+       margin: 2rem;
+       transition: background-color 0.3s, color 0.3s;
+       line-height: 1.6;
+     }
+ 
+     /* Terminal/text browser friendly: linear layout */
+     #feed {
+       display: block;
+     }
+     
+     #feed .article {
+       margin-bottom: 2rem;
+       border-bottom: 1px solid #ddd;
+       padding-bottom: 1.5rem;
+     }
+     
+     #feed .article:last-child {
+       border-bottom: none;
+     }
+ 
+      /* Progressive enhancement: use grid only if JS is enabled */
+      body.js-enabled #feed {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1.5rem;
+      }
+      
+      @media (max-width: 1200px) {
+        body.js-enabled #feed {
+          grid-template-columns: repeat(3, 1fr);
+        }
+      }
+      
+      @media (max-width: 900px) {
+        body.js-enabled #feed {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+      
+      @media (max-width: 600px) {
+        body.js-enabled #feed {
+          grid-template-columns: 1fr;
+        }
+      }
+     
+     body.js-enabled #feed .article {
+       margin-bottom: 0;
+       border-bottom: 1px solid #ddd;
+       border-radius: 8px;
+       padding: 1rem;
+     }
 
 .article {
   border: 1px solid #ddd;
@@ -338,8 +380,8 @@ body.dark-mode .article {
       background: #c82333;
     }
 
-    /* Stock Chart Styles */
-    .stock-chart-container {
+    /* Stocks Grid Styles */
+    .stocks-container {
       border: 1px solid #ddd;
       border-radius: 8px;
       padding: 1.5rem;
@@ -347,123 +389,100 @@ body.dark-mode .article {
       background: #f9f9f9;
     }
 
-    body.dark-mode .stock-chart-container {
+    body.dark-mode .stocks-container {
       background: #1a1a1a;
       border-color: #444;
     }
 
-    .toggle-chart-btn {
-      background: none;
-      border: none;
-      font-size: 1.2rem;
-      cursor: pointer;
+    .stocks-container .panel-header {
+      margin-bottom: 1rem;
+    }
+
+    .last-update {
+      font-size: 0.85rem;
       color: #666;
-      width: 24px;
-      height: 24px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 4px;
     }
 
-    .toggle-chart-btn:hover {
-      background: rgba(0, 0, 0, 0.1);
-    }
-
-    body.dark-mode .toggle-chart-btn {
+    body.dark-mode .last-update {
       color: #888;
     }
 
-    body.dark-mode .toggle-chart-btn:hover {
-      background: rgba(255, 255, 255, 0.1);
+    .stocks-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
     }
 
-    .stock-chart-content {
-      padding: 1rem;
+    @media (max-width: 900px) {
+      .stocks-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
     }
 
-    .stock-buttons {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-      margin-bottom: 1rem;
+    @media (max-width: 600px) {
+      .stocks-grid {
+        grid-template-columns: 1fr;
+      }
     }
 
-    .stock-btn {
-      background: #e9ecef;
+    .stock-card {
+      background: white;
       border: 1px solid #ddd;
-      padding: 0.4rem 0.8rem;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 0.85rem;
-      transition: all 0.2s;
+      border-radius: 8px;
+      padding: 1rem;
+      text-align: center;
+      transition: transform 0.2s, box-shadow 0.2s;
     }
 
-    .stock-btn:hover {
-      background: #dee2e6;
+    .stock-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
 
-    .stock-btn.active {
-      background: #007bff;
-      color: white;
-      border-color: #007bff;
-    }
-
-    body.dark-mode .stock-btn {
-      background: #333;
-      border-color: #444;
-      color: #ccc;
-    }
-
-    body.dark-mode .stock-btn:hover {
-      background: #444;
-    }
-
-    body.dark-mode .stock-btn.active {
-      background: #0056b3;
-      border-color: #0056b3;
-      color: white;
-    }
-
-    .stock-info {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 1rem;
-      padding: 0.5rem;
-      background: #f8f9fa;
-      border-radius: 4px;
-    }
-
-    body.dark-mode .stock-info {
+    body.dark-mode .stock-card {
       background: #2a2a2a;
+      border-color: #444;
     }
 
-    .current-price {
-      font-size: 1.25rem;
+    .stock-card.loading {
+      opacity: 0.6;
+    }
+
+    .stock-card.error {
+      color: #dc3545;
+    }
+
+    .stock-symbol {
+      font-size: 0.85rem;
+      color: #666;
+      text-transform: uppercase;
+      margin-bottom: 0.5rem;
+    }
+
+    body.dark-mode .stock-symbol {
+      color: #888;
+    }
+
+    .stock-price {
+      font-size: 1.5rem;
       font-weight: bold;
       color: #333;
+      margin-bottom: 0.25rem;
     }
 
-    body.dark-mode .current-price {
+    body.dark-mode .stock-price {
       color: #eee;
     }
 
-    .price-change {
+    .stock-change {
       font-size: 0.9rem;
       font-weight: 500;
     }
 
-    .price-change.positive {
+    .stock-change.positive {
       color: #28a745;
     }
 
-    .price-change.negative {
+    .stock-change.negative {
       color: #dc3545;
     }
-
-    #stockChart {
-      max-height: 200px;
-    }
-
-    /* Make room for the stock chart on smaller screens */
